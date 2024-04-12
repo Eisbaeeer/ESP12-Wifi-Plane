@@ -28,6 +28,6 @@ Youtube Playlist : https://www.youtube.com/playlist?list=PL6rHZ-FYvZtEZ2F3nPtqbe
 
 ![Logo](pics/Front.png)
 ![Logo](pics/schematic.png)
-![Logo](pics/Plantine-gelötet.jpg)
+![Logo](pics/Plantine-soldered.jpg)
 ![Logo](pics/Flieger.jpg)
 ![Logo](pics/Flieger_vorne.jpg)
