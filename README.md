@@ -17,6 +17,8 @@ Youtube Playlist : https://www.youtube.com/playlist?list=PL6rHZ-FYvZtEZ2F3nPtqbe
 - supports two motors
 - sending RSSI to mobile device
 - sending battery voltage of receiver to mobile device
+- calibrate motors
+- update firmware via OTA http://192.168.43.42/update
 
 ## Schematic
 
@@ -25,9 +27,24 @@ Youtube Playlist : https://www.youtube.com/playlist?list=PL6rHZ-FYvZtEZ2F3nPtqbe
 | GPIO 04            | G   | Gain               | Motor right Si2302DS    |   
 | GPIO 05            | G   | Gain               | Motor left Si2302DS     |   
 
+## Folders
 
-![Logo](pics/Front.png)
+- CAD --> Plane cutouts for laser or cnc or by hand   
+- Gerber --> Gerber files for PCB   
+- src --> Source files for Platformio
+- Use 3mm Depron / EPP
+
+## Flashing firmware
+
+To flash the board, use UART to USB adapter. Do it in this step´s to enable flashing mode of ESP
+1. Connect the pins to the UART adapter (GND, TX, RX)   
+2. Connect E-pin to GND
+3. Plug in the battery
+4. Flash the ESP
+
+![Logo](pics/Top.png)
+![Logo](pics/bottom.png)
 ![Logo](pics/schematic.png)
-![Logo](pics/Platine-soldered.jpg)
+![Logo](pics/hardware.jpg)
 ![Logo](pics/Flieger.jpg)
 ![Logo](pics/Flieger_vorne.jpg)

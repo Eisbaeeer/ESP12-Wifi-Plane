@@ -12,15 +12,30 @@
  **********************************************************************
  *  20240405
  *  Lars Weimar
- *  Ported Firmware to using new APP with first project (onlny 2 motors)
+ *  Ported Firmware to using new APP with first project (only 2 motors)
  *  No N76E003 needed!
  *  Changed Analog Read to input voltage of module
+ *
+ *  20240406
+ *  Lars Weimar
+ *  Added OTA updates
+ *  open http://192.168.43.42/update
+ *
+ *  20240725
+ *  Added motor calibration
  **********************************************************************/
 
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h> // used for UDP comms.
 #include <EEPROM.h>
-//#define DEBUGLED  // Uncomment this line to observe loop and rx pkt timing
+#include <ESP8266WiFi.h>
+#include <ESPAsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <ElegantOTA.h>
+
+unsigned long ota_progress_millis = 0;
+
+#define DEBUGLED  // Uncomment this line to observe loop and rx pkt timing
 //#define DEBUGSER  // Uncomment this line to get redable values of angle and rx pkt on serial terminal (note - N76E003 not understand this readings)
 
 #define PID_LOOP_US  6000
@@ -29,19 +44,23 @@
 
 unsigned int l_speed = 0;
 unsigned int r_speed = 0;
+unsigned int l_calibrate = 0;     // calibrate motor 0 to -128
+unsigned int r_calibrate = -12;     // calibrate motor 0 to -128
 
-#define ST_LED        2  //D4
-#define DEBUG_LED     5  //D1  // Toggle when pkt received
+#define DEBUG_LED     2  //D4  // Toggle when pkt received
 #define DEBUG_LED2    16 //D0  // HIGH during calculation in loop
 #define RESP_CNT_MAX  50
 
-// set Server stuff
+// OTA settings
+AsyncWebServer server(80);
+
 WiFiUDP Udp;
 
 //***UDP Variables***
 unsigned int localUdpPort = 2390;
 
 //*** Soft Ap variables ***
+// fixed ip 192.168.43.42
 IPAddress APlocal_IP(192, 168, 43, 42);
 IPAddress APgateway(192, 168, 43, 42);
 IPAddress APsubnet(255, 255, 255, 0);
@@ -53,7 +72,7 @@ int16_t R_ch=128, P_ch=128, T_ch=0, Y_ch=128;
 unsigned char AUX_ch;
  
 float R_in=0,R_set=0,R_out=0; 
-int16_t mot1_final=0,mot2_final=0,speed=0;
+int16_t mot1_final=0,mot2_final=0;
 uint32_t loop_count=0;
 uint32_t old_pkt_cnt=0, current_pkt_cnt=0;
 uint8_t con_flag=0;
@@ -115,6 +134,31 @@ unsigned int check_rx_pkt(int16_t& rch,int16_t& pch,int16_t& tch,int16_t& ych,un
  }
 }
 
+void onOTAStart() {
+  // Log when OTA has started
+  Serial.println("OTA update started!");
+  // <Add your own code here>
+}
+
+void onOTAProgress(size_t current, size_t final) {
+  // Log every 1 second
+  if (millis() - ota_progress_millis > 1000) {
+    ota_progress_millis = millis();
+    Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+  }
+}
+
+void onOTAEnd(bool success) {
+  // Log when OTA has finished
+  if (success) {
+    Serial.println("OTA update finished successfully!");
+  } else {
+    Serial.println("There was an error during OTA update!");
+  }
+  // <Add your own code here>
+}
+
+
 void setup() {
   
   Serial.begin(115200);
@@ -125,16 +169,27 @@ void setup() {
   pinMode(R_MOTOR, OUTPUT);
   analogWrite(L_MOTOR,0);
   analogWrite(R_MOTOR,0);
-  delay(500);
+  delay(50);
+
+  ElegantOTA.begin(&server);    // Start ElegantOTA
+  // ElegantOTA callbacks
+  ElegantOTA.onStart(onOTAStart);
+  ElegantOTA.onProgress(onOTAProgress);
+  ElegantOTA.onEnd(onOTAEnd);
+
+  server.begin();
+  Serial.println("HTTP server started");
 }
 
 void loop() {
+  ElegantOTA.loop();
 
   if(micros()-microsold >= PID_LOOP_US)
   {
     #ifdef DEBUGLED    
     digitalWrite(DEBUG_LED2,HIGH);
     #endif
+    uint8_t m1h,m1l,m2h,m2l,mcmd;
     microsold = micros();
     check_rx_pkt(R_ch,P_ch,T_ch,Y_ch,AUX_ch);
     if((AUX_ch & 0x80) == 0x80) //if ARMED 
@@ -149,12 +204,8 @@ void loop() {
     {
       AUX_ch=0x00;
       mot1_final = 0;
-      digitalWrite(ST_LED,HIGH);
     }
-    else 
-    {
-      digitalWrite(ST_LED,LOW);
-    }
+    
     #ifdef DEBUGLED    
     digitalWrite(DEBUG_LED2,LOW);
     #endif
@@ -172,21 +223,23 @@ void loop() {
       if (mot1_final > 0) {
         int16_t ruder_r = 0;
         int16_t ruder_l = 0;
-        speed = map(mot1_final, 0, 494, 0, 255);    
-        
+        l_speed = mot1_final+l_calibrate;
+        r_speed = mot1_final+r_calibrate;        
+
         if (R_ch > 128) {
           ruder_r = R_ch - 128;
-          analogWrite(R_MOTOR,speed-ruder_r);
-          analogWrite(L_MOTOR,speed);
+          analogWrite(R_MOTOR,r_speed);
+          analogWrite(L_MOTOR,l_speed+ruder_r);
         } else if (R_ch < 128) {
           ruder_l = 128 - R_ch;
-          analogWrite(R_MOTOR,speed);
-          analogWrite(L_MOTOR,speed-ruder_l);
+          analogWrite(R_MOTOR,r_speed+ruder_l);
+          analogWrite(L_MOTOR,l_speed);
         } else {
-        analogWrite(L_MOTOR,speed);
-        analogWrite(R_MOTOR,speed);
+        analogWrite(L_MOTOR,l_speed);
+        analogWrite(R_MOTOR,r_speed);
         }
       }
+  
 
     #ifdef DEBUGSER  // debug message for check what IMU remote and PID doing
     Serial.print(mot1_final);         Serial.print('\t');
@@ -223,11 +276,9 @@ void setup_hardware_wifi_ap(void)
   snprintf(chip_id, 15, "%04X", (uint16_t)(ESP.getChipId()));
   String APssid = "Wifi-Plane - " + String(chip_id);
 
-  pinMode(ST_LED,OUTPUT);
   pinMode(DEBUG_LED,OUTPUT);
   pinMode(DEBUG_LED2,OUTPUT);
-  digitalWrite(ST_LED,HIGH);
-  digitalWrite(DEBUG_LED,LOW);
+  digitalWrite(DEBUG_LED,HIGH);
   WiFi.mode(WIFI_AP);
   WiFi.softAPConfig(APlocal_IP, APgateway, APsubnet);
   //WiFi.softAP(APssid, APpassword);
