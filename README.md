@@ -42,6 +42,17 @@ To flash the board, use UART to USB adapter. Do it in this step´s to enable fla
 3. Plug in the battery
 4. Flash the ESP
 
+## Updating firmware
+
+The firmware includes OTA (Over-The-Air Update).
+You can easily upload the compiled firmware file (firmware.bin) via web-browser.
+Connect to the Wifi accesspoint of the plane, open the browser and type in the following url.
+http://192.168.43.42/update
+
+![Logo](pics/firmware01.png)
+
+Click on select file and upload the firmware (this takes some seconds). The click on Update Firmware.
+
 ![Logo](pics/Top.png)
 ![Logo](pics/bottom.png)
 ![Logo](pics/schematic.png)

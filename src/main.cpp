@@ -23,15 +23,19 @@
  *
  *  20240725
  *  Added motor calibration
+ * 
+ *  20240815
+ *  Changed OTA Update Software
  **********************************************************************/
 
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h> // used for UDP comms.
 #include <EEPROM.h>
 #include <ESP8266WiFi.h>
-#include <ESPAsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include <ElegantOTA.h>
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266HTTPUpdateServer.h>
+#include <ESP8266mDNS.h>
 
 unsigned long ota_progress_millis = 0;
 
@@ -39,20 +43,21 @@ unsigned long ota_progress_millis = 0;
 //#define DEBUGSER  // Uncomment this line to get redable values of angle and rx pkt on serial terminal (note - N76E003 not understand this readings)
 
 #define PID_LOOP_US  6000
-#define L_MOTOR 4
-#define R_MOTOR 5
+#define L_MOTOR 5
+#define R_MOTOR 4
 
 unsigned int l_speed = 0;
 unsigned int r_speed = 0;
 unsigned int l_calibrate = 0;     // calibrate motor 0 to -128
-unsigned int r_calibrate = -12;     // calibrate motor 0 to -128
+unsigned int r_calibrate = 0;     // calibrate motor 0 to -128
 
 #define DEBUG_LED     2  //D4  // Toggle when pkt received
 #define DEBUG_LED2    16 //D0  // HIGH during calculation in loop
 #define RESP_CNT_MAX  50
 
 // OTA settings
-AsyncWebServer server(80);
+ESP8266WebServer httpServer(80);
+ESP8266HTTPUpdateServer httpUpdater;
 
 WiFiUDP Udp;
 
@@ -134,31 +139,6 @@ unsigned int check_rx_pkt(int16_t& rch,int16_t& pch,int16_t& tch,int16_t& ych,un
  }
 }
 
-void onOTAStart() {
-  // Log when OTA has started
-  Serial.println("OTA update started!");
-  // <Add your own code here>
-}
-
-void onOTAProgress(size_t current, size_t final) {
-  // Log every 1 second
-  if (millis() - ota_progress_millis > 1000) {
-    ota_progress_millis = millis();
-    Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
-  }
-}
-
-void onOTAEnd(bool success) {
-  // Log when OTA has finished
-  if (success) {
-    Serial.println("OTA update finished successfully!");
-  } else {
-    Serial.println("There was an error during OTA update!");
-  }
-  // <Add your own code here>
-}
-
-
 void setup() {
   
   Serial.begin(115200);
@@ -171,19 +151,23 @@ void setup() {
   analogWrite(R_MOTOR,0);
   delay(50);
 
-  ElegantOTA.begin(&server);    // Start ElegantOTA
-  // ElegantOTA callbacks
-  ElegantOTA.onStart(onOTAStart);
-  ElegantOTA.onProgress(onOTAProgress);
-  ElegantOTA.onEnd(onOTAEnd);
-
-  server.begin();
-  Serial.println("HTTP server started");
+  // UpdateServer
+  const char* host = "esp8266-webupdate";
+  MDNS.begin(host);
+  httpUpdater.setup(&httpServer);
+  httpServer.begin();
+  MDNS.addService("http", "tcp", 80);
+  Serial.printf("HTTPUpdateServer ready! Open http://%s.local/update in your browser\n", host);
+  delay(500);    
+    
 }
 
 void loop() {
-  ElegantOTA.loop();
 
+  //UpdateServer
+  httpServer.handleClient();
+  MDNS.update();
+  
   if(micros()-microsold >= PID_LOOP_US)
   {
     #ifdef DEBUGLED    
