@@ -29,10 +29,9 @@ Youtube Playlist : https://www.youtube.com/playlist?list=PL6rHZ-FYvZtEZ2F3nPtqbe
 
 ## Folders
 
-- CAD --> Plane cutouts for laser or cnc or by hand   
+- CAD --> Plane cutouts for laser or cnc or by hand and pdf paper  
 - Gerber --> Gerber files for PCB   
 - src --> Source files for Platformio
-- Use 3mm Depron / EPP
 
 ## Flashing firmware
 
