@@ -52,6 +52,11 @@ http://192.168.43.42/update
 
 Click on select file and upload the firmware (this takes some seconds). The click on Update Firmware.
 
+## ToDo
+- adding pins D1 (GPIO5), D2 (GPIO4), GND, VCC  (for future use of MPU6050)
+- adding pins GPIO12, GND, VCC (Servo elevator)
+- adding pins GPIO13, GND, VCC (Servo ruder)
+
 ![Logo](pics/Top.png)
 ![Logo](pics/bottom.png)
 ![Logo](pics/schematic.png)
